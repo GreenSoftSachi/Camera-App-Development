@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ProCam UI — ISP &amp; Camera App</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="camera-shell" id="cameraShell">
+    <!-- Viewfinder Layer -->
+    <div class="viewfinder-stage" id="viewfinderStage">
+      <video id="cameraVideo" autoplay playsinline muted></video>
+      <canvas id="previewCanvas"></canvas>
+
+      <!-- Rule of Thirds Grid -->
+      <div class="grid-overlay" id="gridOverlay" aria-hidden="true">
+        <div class="grid-line v1"></div>
+        <div class="grid-line v2"></div>
+        <div class="grid-line h1"></div>
+        <div class="grid-line h2"></div>
+      </div>
+
+      <!-- Tap-to-Focus Reticle -->
+      <div class="focus-reticle" id="focusReticle" aria-hidden="true">
+        <div class="focus-ring"></div>
+        <span class="focus-tag" id="focusTag">AF LOCKED</span>
+      </div>
+
+      <!-- Countdown Overlay -->
+      <div class="countdown-overlay" id="countdownOverlay" aria-hidden="true"></div>
+
+      <!-- Flash Trigger Overlay -->
+      <div class="flash-overlay" id="flashOverlay" aria-hidden="true"></div>
+
+      <!-- Recording / Time-lapse / Panorama Status Pill -->
+      <div class="status-pill hidden" id="statusPill">
+        <span class="rec-dot"></span>
+        <span id="statusText">00:00</span>
+      </div>
+
+      <!-- Demo / Fallback Banner when no physical camera is active -->
+      <div class="demo-badge hidden" id="demoBadge">
+        <span>Simulated Bright Indoor Scene</span>
+        <button type="button" id="retryCameraBtn" title="Try connecting real camera">Use Webcam</button>
+      </div>
+    </div>
+
+    <!-- Top Gradient Backdrop + Controls -->
+    <header class="top-bar">
+      <div class="top-bar-row">
+        <button type="button" class="icon-btn" id="flashBtn" title="Rear Flash Mode" aria-label="Flash">
+          <svg viewBox="0 0 24 24" class="icon"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+          <span class="btn-label" id="flashLabel">Auto</span>
+        </button>
+
+        <button type="button" class="icon-btn active" id="hdrBtn" title="HDR / Highlight Protection" aria-label="HDR">
+          <span class="hdr-badge">HDR</span>
+          <span class="btn-label" id="hdrLabel">On</span>
+        </button>
+
+        <button type="button" class="icon-btn" id="awbBtn" title="Indoor AWB Preset" aria-label="White Balance">
+          <span class="awb-badge">AWB</span>
+          <span class="btn-label" id="awbLabel">Auto</span>
+        </button>
+
+        <button type="button" class="icon-btn" id="afModeBtn" title="Auto-Focus Mode" aria-label="Focus Mode">
+          <svg viewBox="0 0 24 24" class="icon"><path d="M5 3h4v2H5v4H3V5a2 2 0 0 1 2-2zm10 0h4a2 2 0 0 1 2 2v4h-2V5h-4V3zM3 15h2v4h4v2H5a2 2 0 0 1-2-2v-4zm16 4v-4h2v4a2 2 0 0 1-2 2h-4v-2h4zM12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8z"/></svg>
+          <span class="btn-label" id="afLabel">AF-C</span>
+        </button>
+
+        <button type="button" class="icon-btn" id="timerBtn" title="Shutter Timer" aria-label="Timer">
+          <svg viewBox="0 0 24 24" class="icon"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61 1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42A8.962 8.962 0 0 0 12 4c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+          <span class="btn-label" id="timerLabel">Off</span>
+        </button>
+
+        <button type="button" class="icon-btn" id="gridBtn" title="Composition Grid" aria-label="Grid">
+          <svg viewBox="0 0 24 24" class="icon"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM8 20H4v-4h4v4zm0-6H4v-4h4v4zm0-6H4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4zm6 12h-4v-4h4v4zm0-6h-4v-4h4v4zm0-6h-4V4h4v4z"/></svg>
+          <span class="btn-label" id="gridLabel">Off</span>
+        </button>
+
+        <button type="button" class="icon-btn" id="ispToggleBtn" title="ISP &amp; Manual Controls" aria-label="ISP Controls">
+          <svg viewBox="0 0 24 24" class="icon"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>
+          <span class="btn-label">ISP</span>
+        </button>
+      </div>
+
+      <!-- Live Telemetry Readout (Readable over bright scenes) -->
+      <div class="telemetry-strip" id="telemetryStrip">
+        <span id="evReadout">EV 0.0</span>
+        <span id="awbReadout">AWB 5200K</span>
+        <span id="afReadout">AF: Normal</span>
+        <span id="ispReadout">HDR + MFNR</span>
+      </div>
+    </header>
+
+    <!-- ISP / Pro Manual Controls Drawer -->
+    <section class="isp-panel hidden" id="ispPanel" aria-label="ISP and Pro Manual Controls">
+      <div class="isp-header">
+        <span>ISP &amp; Pro Tuning</span>
+        <div class="isp-actions">
+          <button type="button" class="pill-btn" id="presetBalancedBtn">Auto Tuned</button>
+          <button type="button" class="pill-btn" id="presetRawBtn">Reset Raw</button>
+        </div>
+      </div>
+
+      <div class="isp-grid">
+        <label class="slider-control">
+          <div class="slider-head">
+            <span>AE Exposure (EV)</span>
+            <span id="valEv">0.0</span>
+          </div>
+          <input type="range" id="ctrlEv" min="-2.0" max="2.0" step="0.1" value="-0.2" />
+        </label>
+
+        <label class="slider-control">
+          <div class="slider-head">
+            <span>Highlight Recovery (HDR)</span>
+            <span id="valHdr">65%</span>
+          </div>
+          <input type="range" id="ctrlHdr" min="0" max="100" step="1" value="65" />
+        </label>
+
+        <label class="slider-control">
+          <div class="slider-head">
+            <span>ISP Contrast</span>
+            <span id="valContrast">112%</span>
+          </div>
+          <input type="range" id="ctrlContrast" min="70" max="150" step="1" value="112" />
+        </label>
+
+        <label class="slider-control">
+          <div class="slider-head">
+            <span>Edge Sharpness</span>
+            <span id="valSharpness">35%</span>
+          </div>
+          <input type="range" id="ctrlSharpness" min="0" max="100" step="1" value="35" />
+        </label>
+
+        <label class="slider-control">
+          <div class="slider-head">
+            <span>MFNR (Noise Reduction)</span>
+            <span id="valMfnr">40%</span>
+          </div>
+          <input type="range" id="ctrlMfnr" min="0" max="100" step="1" value="40" />
+        </label>
+
+        <label class="slider-control">
+          <div class="slider-head">
+            <span>AWB Temp (Warm/Cool)</span>
+            <span id="valTemp">5200K</span>
+          </div>
+          <input type="range" id="ctrlTemp" min="3000" max="7500" step="100" value="5200" />
+        </label>
+
+        <label class="slider-control">
+          <div class="slider-head">
+            <span>AWB Tint (Fix Green Cast)</span>
+            <span id="valTint">+4</span>
+          </div>
+          <input type="range" id="ctrlTint" min="-30" max="30" step="1" value="4" />
+        </label>
+
+        <label class="slider-control">
+          <div class="slider-head">
+            <span>Manual Focus</span>
+            <span id="valFocus">Auto</span>
+          </div>
+          <input type="range" id="ctrlFocus" min="0" max="100" step="1" value="0" />
+        </label>
+      </div>
+    </section>
+
+    <!-- Bottom Gradient Backdrop + Mode Selector + Shutter -->
+    <footer class="bottom-bar">
+      <!-- Zoom Selector -->
+      <div class="zoom-bar" role="group" aria-label="Zoom Level">
+        <button type="button" class="zoom-btn" data-zoom="0.6">0.6x</button>
+        <button type="button" class="zoom-btn active" data-zoom="1">1x</button>
+        <button type="button" class="zoom-btn" data-zoom="2">2x</button>
+        <button type="button" class="zoom-btn" data-zoom="5">5x</button>
+      </div>
+
+      <!-- Camera Modes (Panorama, Portrait, Pro, Capture, Video, Time lapse) -->
+      <nav class="mode-strip" id="modeStrip" aria-label="Camera Modes">
+        <button type="button" class="mode-btn" data-mode="Panorama">Panorama</button>
+        <button type="button" class="mode-btn" data-mode="Portrait">Portrait</button>
+        <button type="button" class="mode-btn" data-mode="Pro">Pro</button>
+        <button type="button" class="mode-btn active" data-mode="Capture">Capture</button>
+        <button type="button" class="mode-btn" data-mode="Video">Video</button>
+        <button type="button" class="mode-btn" data-mode="Time lapse">Time lapse</button>
+      </nav>
+
+      <!-- Main Action Row -->
+      <div class="shutter-row">
+        <button type="button" class="gallery-thumb" id="galleryBtn" title="Open Gallery" aria-label="Gallery">
+          <img id="lastThumbImg" alt="Last capture" class="hidden" />
+          <span class="thumb-placeholder" id="thumbPlaceholder">0</span>
+        </button>
+
+        <button type="button" class="shutter-btn" id="shutterBtn" aria-label="Capture">
+          <span class="shutter-inner" id="shutterInner"></span>
+        </button>
+
+        <button type="button" class="switch-cam-btn" id="switchCamBtn" title="Switch Front / Rear Camera" aria-label="Switch Camera">
+          <svg viewBox="0 0 24 24" class="icon"><path d="M20 5h-3.17L15 3H9L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-5 11.5V14H9v2.5L5.5 13 9 9.5V12h6V9.5l3.5 3.5-3.5 3.5z"/></svg>
+        </button>
+      </div>
+    </footer>
+
+    <!-- Gallery Modal -->
+    <div class="gallery-modal hidden" id="galleryModal" role="dialog" aria-modal="true" aria-label="Captured Media">
+      <div class="gallery-header">
+        <h2>Captured Media</h2>
+        <button type="button" class="close-modal-btn" id="closeGalleryBtn">Close</button>
+      </div>
+      <div class="gallery-grid" id="galleryGrid">
+        <p class="empty-gallery" id="emptyGalleryMsg">No photos or videos captured yet.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
